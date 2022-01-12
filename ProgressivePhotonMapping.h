@@ -27,6 +27,7 @@
  **************************************************************************/
 #pragma once
 #include "Falcor.h"
+#include "Utils/Sampling/SampleGenerator.h"
 
 using namespace Falcor;
 
@@ -37,11 +38,6 @@ public:
 
     static const Info kInfo;
 
-    /** Create a new render pass object.
-        \param[in] pRenderContext The render context.
-        \param[in] dict Dictionary of serialized parameters.
-        \return A new object, or an exception is thrown if creation failed.
-    */
     static SharedPtr create(RenderContext* pRenderContext = nullptr, const Dictionary& dict = {});
 
     virtual Dictionary getScriptingDictionary() override;
@@ -49,10 +45,19 @@ public:
     virtual void compile(RenderContext* pRenderContext, const CompileData& compileData) override {}
     virtual void execute(RenderContext* pRenderContext, const RenderData& renderData) override;
     virtual void renderUI(Gui::Widgets& widget) override;
-    virtual void setScene(RenderContext* pRenderContext, const Scene::SharedPtr& pScene) override {}
+    virtual void setScene(RenderContext* pRenderContext, const Scene::SharedPtr& pScene) override;
+
     virtual bool onMouseEvent(const MouseEvent& mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
 
+    void resolve(RenderContext* pRenderContext, const RenderData& renderData);
+
 private:
-    ProgressivePhotonMapping() : RenderPass(kInfo) {}
+    ProgressivePhotonMapping();
+
+    Scene::SharedPtr mpScene;
+    SampleGenerator::SharedPtr mpSampleGenerator;
+
+    ComputePass::SharedPtr mpResolvePass;
+    Texture::SharedPtr mpShadingOutput;
 };
