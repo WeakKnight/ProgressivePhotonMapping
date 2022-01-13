@@ -25,8 +25,10 @@ struct ResolvePass
         
         if (gShadingDataLoader.isPixelValid(pixel, params.frameDim))
         {
+            ITextureSampler lod = ExplicitLodTextureSampler(0.f);
             ShadingData sd = gShadingDataLoader.loadShadingData(pixel, params.frameDim, gScene.camera);
-            color = sd.posW;
+            IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
+            color = bsdf.getProperties(sd).diffuseReflectionAlbedo;
         }
         
         outputColor[pixel] = float4(color, 1.0f);
