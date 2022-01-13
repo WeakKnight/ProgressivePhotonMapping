@@ -28,6 +28,8 @@
 #pragma once
 #include "Falcor.h"
 #include "Utils/Sampling/SampleGenerator.h"
+#include "Rendering/Lights/EmissivePowerSampler.h"
+#include "Rendering/Lights/EnvMapSampler.h"
 
 using namespace Falcor;
 
@@ -50,6 +52,8 @@ public:
     virtual bool onMouseEvent(const MouseEvent& mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
 
+    void recompile();
+    bool prepareLighting(RenderContext* pRenderContext);
     void resolve(RenderContext* pRenderContext, const RenderData& renderData);
 
 private:
@@ -58,6 +62,11 @@ private:
     Scene::SharedPtr mpScene;
     SampleGenerator::SharedPtr mpSampleGenerator;
 
+    EmissivePowerSampler::SharedPtr mpEmissiveSampler;
+    EnvMapSampler::SharedPtr mpEnvMapSampler;
+
     ComputePass::SharedPtr mpResolvePass;
     Texture::SharedPtr mpShadingOutput;
+
+    bool mRecompile = true;
 };

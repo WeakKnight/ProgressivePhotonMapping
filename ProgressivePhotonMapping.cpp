@@ -97,6 +97,13 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
         return;
     }
 
+    prepareLighting(pRenderContext);
+
+    if (mRecompile)
+    {
+        recompile();
+    }
+
     resolve(pRenderContext, renderData);
 }
 
@@ -107,8 +114,15 @@ void ProgressivePhotonMapping::renderUI(Gui::Widgets& widget)
 void ProgressivePhotonMapping::setScene(RenderContext* pRenderContext, const Scene::SharedPtr& pScene)
 {
     mpScene = pScene;
+}
 
+void ProgressivePhotonMapping::recompile()
+{
     Shader::DefineList defines = mpScene->getSceneDefines();
+    if (mpEmissiveSampler)
+    {
+        defines.add(mpEmissiveSampler->getDefines());
+    }
     Program::TypeConformanceList typeConformances = mpScene->getTypeConformances();
 
     auto prepareProgram = [&](Program::SharedPtr program)
@@ -119,6 +133,80 @@ void ProgressivePhotonMapping::setScene(RenderContext* pRenderContext, const Sce
 
     prepareProgram(mpResolvePass->getProgram());
     mpResolvePass->setVars(nullptr);
+}
+
+bool ProgressivePhotonMapping::prepareLighting(RenderContext* pRenderContext)
+{
+    bool lightingChanged = false;
+
+    if (is_set(mpScene->getUpdates(), Scene::UpdateFlags::RenderSettingsChanged))
+    {
+        lightingChanged = true;
+        mRecompile = true;
+    }
+
+    if (is_set(mpScene->getUpdates(), Scene::UpdateFlags::EnvMapChanged))
+    {
+        mpEnvMapSampler = nullptr;
+        lightingChanged = true;
+        mRecompile = true;
+    }
+
+    if (mpScene->useEnvLight())
+    {
+        if (!mpEnvMapSampler)
+        {
+            mpEnvMapSampler = EnvMapSampler::create(pRenderContext, mpScene->getEnvMap());
+            lightingChanged = true;
+            mRecompile = true;
+        }
+    }
+    else
+    {
+        if (mpEnvMapSampler)
+        {
+            mpEnvMapSampler = nullptr;
+            lightingChanged = true;
+            mRecompile = true;
+        }
+    }
+
+    // Request the light collection if emissive lights are enabled.
+    if (mpScene->getRenderSettings().useEmissiveLights)
+    {
+        mpScene->getLightCollection(pRenderContext);
+    }
+
+    if (mpScene->useEmissiveLights())
+    {
+        if (!mpEmissiveSampler)
+        {
+            const auto& pLights = mpScene->getLightCollection(pRenderContext);
+            assert(pLights && pLights->getActiveLightCount() > 0);
+            assert(!mpEmissiveSampler);
+
+            mpEmissiveSampler = EmissivePowerSampler::create(pRenderContext, mpScene);
+            
+            lightingChanged = true;
+            mRecompile = true;
+        }
+    }
+    else
+    {
+        if (mpEmissiveSampler)
+        {
+            mpEmissiveSampler = nullptr;
+            lightingChanged = true;
+            mRecompile = true;
+        }
+    }
+
+    if (mpEmissiveSampler)
+    {
+        lightingChanged |= mpEmissiveSampler->update(pRenderContext);
+    }
+
+    return lightingChanged;
 }
 
 void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const RenderData& renderData)
