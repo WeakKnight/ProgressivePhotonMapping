@@ -218,7 +218,15 @@ void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const Rend
     cb["gResolvePass"]["params"]["frameCount"] = (uint)gpFramework->getGlobalClock().getFrame();
     cb["gResolvePass"]["params"]["seed"] = (uint)gpFramework->getGlobalClock().getFrame();
     cb["gResolvePass"]["outputColor"] = renderData[kOutputChannels[0].name]->asTexture();
-    ShadingDataLoader::setShaderData(renderData, cb["gShadingDataLoader"]);
+    if (mpEnvMapSampler)
+    {
+        mpEnvMapSampler->setShaderData(cb["gResolvePass"]["envMapSampler"]);
+    }
+    if (mpEmissiveSampler)
+    {
+        mpEmissiveSampler->setShaderData(cb["gResolvePass"]["emissiveSampler"]);
+    }
+    ShadingDataLoader::setShaderData(renderData, cb["gResolvePass"]["shadingDataLoader"]);
 
     mpSampleGenerator->setShaderData(mpResolvePass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpResolvePass->getRootVar());
