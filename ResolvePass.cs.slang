@@ -74,6 +74,7 @@ struct ResolvePass
             return;
         }
 
+
         float3 color = float3(0.f);
 
         SampleGenerator sg = SampleGenerator(pixel, params.seed);

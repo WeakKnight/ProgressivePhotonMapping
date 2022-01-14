@@ -27,7 +27,6 @@
  **************************************************************************/
 #include "ProgressivePhotonMapping.h"
 #include "ShadingDataLoader.h"
-#include "Params.slang"
 
 const RenderPass::Info ProgressivePhotonMapping::kInfo { "ProgressivePhotonMapping", "Insert pass description here." };
 
@@ -71,6 +70,13 @@ ProgressivePhotonMapping::ProgressivePhotonMapping() : RenderPass(kInfo)
     mpResolvePass = ComputePass::create(Program::Desc(kResolvePassFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
 }
 
+void ProgressivePhotonMapping::setParamShaderData(const ShaderVar& var)
+{
+    var["frameDim"] = mParams.frameDim;
+    var["frameCount"] = mParams.frameCount;
+    var["seed"] = mParams.frameCount;
+}
+
 ProgressivePhotonMapping::SharedPtr ProgressivePhotonMapping::create(RenderContext* pRenderContext, const Dictionary& dict)
 {
     SharedPtr pPass = SharedPtr(new ProgressivePhotonMapping());
@@ -102,6 +108,8 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
         return;
     }
 
+    beginFrame(pRenderContext, renderData);
+
     prepareLighting(pRenderContext);
 
     if (mRecompile)
@@ -109,7 +117,13 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
         recompile();
     }
 
+    generateVisiblePoints(pRenderContext, renderData);
+
+    generatePhotons(pRenderContext, renderData);
+
     resolve(pRenderContext, renderData);
+
+    endFrame(pRenderContext, renderData);
 }
 
 void ProgressivePhotonMapping::renderUI(Gui::Widgets& widget)
@@ -119,6 +133,13 @@ void ProgressivePhotonMapping::renderUI(Gui::Widgets& widget)
 void ProgressivePhotonMapping::setScene(RenderContext* pRenderContext, const Scene::SharedPtr& pScene)
 {
     mpScene = pScene;
+}
+
+void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const RenderData& renderData)
+{
+    const auto& pOutputColor = renderData[kOutputChannels[0].name]->asTexture();
+    mParams.frameDim = uint2(pOutputColor->getWidth(), pOutputColor->getHeight());
+    mParams.seed = mParams.frameCount;
 }
 
 void ProgressivePhotonMapping::recompile()
@@ -235,9 +256,7 @@ void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const Rend
     PROFILE("Resolve");
 
     auto cb = mpResolvePass["CB"];
-    cb["gResolvePass"]["params"]["frameDim"] = uint2(gpFramework->getTargetFbo()->getWidth(), gpFramework->getTargetFbo()->getHeight());
-    cb["gResolvePass"]["params"]["frameCount"] = (uint)gpFramework->getGlobalClock().getFrame();
-    cb["gResolvePass"]["params"]["seed"] = (uint)gpFramework->getGlobalClock().getFrame();
+    setParamShaderData(cb["gResolvePass"]["params"]);
     cb["gResolvePass"]["outputColor"] = renderData[kOutputChannels[0].name]->asTexture();
     if (mpEnvMapSampler)
     {
@@ -253,4 +272,9 @@ void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const Rend
     mpScene->setRaytracingShaderData(pRenderContext, mpResolvePass->getRootVar());
 
     mpResolvePass->execute(pRenderContext, gpFramework->getTargetFbo()->getWidth(), gpFramework->getTargetFbo()->getHeight());
+}
+
+void ProgressivePhotonMapping::endFrame(RenderContext* pRenderContext, const RenderData& renderData)
+{
+    mParams.frameCount++;
 }

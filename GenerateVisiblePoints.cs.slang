@@ -20,6 +20,14 @@ struct GenerateVisiblePointsPass
         {
             return;
         }
+
+        if (!shadingDataLoader.isPixelValid(pixel, params.frameDim))
+        {
+            return;
+        }
+
+        ShadingData sd = shadingDataLoader.loadShadingData(pixel, params.frameDim, gScene.camera);
+        
     }
 };
 

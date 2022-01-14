@@ -30,6 +30,7 @@
 #include "Utils/Sampling/SampleGenerator.h"
 #include "Rendering/Lights/EmissivePowerSampler.h"
 #include "Rendering/Lights/EnvMapSampler.h"
+#include "Params.slang"
 
 using namespace Falcor;
 
@@ -52,14 +53,17 @@ public:
     virtual bool onMouseEvent(const MouseEvent& mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
 
+    void beginFrame(RenderContext* pRenderContext, const RenderData& renderData);
     void recompile();
     bool prepareLighting(RenderContext* pRenderContext);
     void generateVisiblePoints(RenderContext* pRenderContext, const RenderData& renderData);
     void generatePhotons(RenderContext* pRenderContext, const RenderData& renderData);
     void resolve(RenderContext* pRenderContext, const RenderData& renderData);
+    void endFrame(RenderContext* pRenderContext, const RenderData& renderData);
 
 private:
     ProgressivePhotonMapping();
+    void setParamShaderData(const ShaderVar& var);
 
     Scene::SharedPtr mpScene;
     SampleGenerator::SharedPtr mpSampleGenerator;
@@ -67,11 +71,14 @@ private:
     EmissivePowerSampler::SharedPtr mpEmissiveSampler;
     EnvMapSampler::SharedPtr mpEnvMapSampler;
 
+    Buffer::SharedPtr mpVisiblePoints; /// Screen Size
+
     ComputePass::SharedPtr mpGenerateVisiblePointsPass;
     ComputePass::SharedPtr mpGeneratePhotonsPass;
     ComputePass::SharedPtr mpResolvePass;
 
     Texture::SharedPtr mpShadingOutput;
 
+    PhotonMappingParams mParams;
     bool mRecompile = true;
 };
