@@ -22,8 +22,8 @@ bool traceShadowRay(float3 origin, float3 dir, float distance)
 
 struct ResolvePass
 {
-    PhotonMappingParams params; ///< Runtime parameters.
-    RWTexture2D<float4> outputColor; ///< Output resolved color.
+    PhotonMappingParams params;
+    RWTexture2D<float4> outputColor;
 
     ShadingDataLoader shadingDataLoader;
     EnvMapSampler envMapSampler;
@@ -55,21 +55,18 @@ struct ResolvePass
                 return float3(0.f);
             }
 
-            // Test visibility by tracing a shadow ray.
             bool V = traceShadowRay(shadingOrigin, L, lightDistance);
             if (!V) 
             {
                 return float3(0.f);
             }
 
-            // Evaluate contribution.
             return bsdf.eval(sd, L) * tls.Le / tls.pdf;
         }
+        
         return 0.0f;
     }
-    /** Entry point for resolve pass.
-        \param[in] pixel Pixel coordinates.
-    */
+
     void execute(const uint2 pixel)
     {
         if (any(pixel >= params.frameDim))
@@ -84,10 +81,11 @@ struct ResolvePass
         if (shadingDataLoader.isPixelValid(pixel, params.frameDim))
         {
             ShadingData sd = shadingDataLoader.loadShadingData(pixel, params.frameDim, gScene.camera);
-            // ITextureSampler lod = ExplicitLodTextureSampler(0.f);
-            // IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
+            ITextureSampler lod = ExplicitLodTextureSampler(0.f);
+            IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
+
             color = evalEmissiveLighting(sd, sg);
-            // color = bsdf.getProperties(sd).diffuseReflectionAlbedo;
+            color += bsdf.getProperties(sd).emissive;
         }
         
         outputColor[pixel] = float4(color, 1.0f);

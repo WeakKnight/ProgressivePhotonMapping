@@ -54,6 +54,8 @@ public:
 
     void recompile();
     bool prepareLighting(RenderContext* pRenderContext);
+    void generateVisiblePoints(RenderContext* pRenderContext, const RenderData& renderData);
+    void generatePhotons(RenderContext* pRenderContext, const RenderData& renderData);
     void resolve(RenderContext* pRenderContext, const RenderData& renderData);
 
 private:
@@ -65,7 +67,10 @@ private:
     EmissivePowerSampler::SharedPtr mpEmissiveSampler;
     EnvMapSampler::SharedPtr mpEnvMapSampler;
 
+    ComputePass::SharedPtr mpGenerateVisiblePointsPass;
+    ComputePass::SharedPtr mpGeneratePhotonsPass;
     ComputePass::SharedPtr mpResolvePass;
+
     Texture::SharedPtr mpShadingOutput;
 
     bool mRecompile = true;

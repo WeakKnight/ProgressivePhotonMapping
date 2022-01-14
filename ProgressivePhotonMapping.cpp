@@ -31,6 +31,8 @@
 
 const RenderPass::Info ProgressivePhotonMapping::kInfo { "ProgressivePhotonMapping", "Insert pass description here." };
 
+const std::string kGenerateVisiblePointsFile = "RenderPasses/ProgressivePhotonMapping/GenerateVisiblePoints.cs.slang";
+const std::string kGeneratePhotonsFile = "RenderPasses/ProgressivePhotonMapping/GeneratePhotons.cs.slang";
 const std::string kResolvePassFile = "RenderPasses/ProgressivePhotonMapping/ResolvePass.cs.slang";
 const std::string kShaderModel = "6_5";
 
@@ -63,6 +65,9 @@ ProgressivePhotonMapping::ProgressivePhotonMapping() : RenderPass(kInfo)
     defines.add(mpSampleGenerator->getDefines());
     defines.add("_MS_DISABLE_ALPHA_TEST");
     defines.add("_DEFAULT_ALPHA_TEST");
+
+    mpGenerateVisiblePointsPass = ComputePass::create(Program::Desc(kGenerateVisiblePointsFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
+    mpGeneratePhotonsPass = ComputePass::create(Program::Desc(kGeneratePhotonsFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
     mpResolvePass = ComputePass::create(Program::Desc(kResolvePassFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
 }
 
@@ -130,6 +135,12 @@ void ProgressivePhotonMapping::recompile()
         program->addDefines(defines);
         program->setTypeConformances(typeConformances);
     };
+
+    prepareProgram(mpGenerateVisiblePointsPass->getProgram());
+    mpGenerateVisiblePointsPass->setVars(nullptr);
+
+    prepareProgram(mpGeneratePhotonsPass->getProgram());
+    mpGeneratePhotonsPass->setVars(nullptr);
 
     prepareProgram(mpResolvePass->getProgram());
     mpResolvePass->setVars(nullptr);
@@ -207,6 +218,16 @@ bool ProgressivePhotonMapping::prepareLighting(RenderContext* pRenderContext)
     }
 
     return lightingChanged;
+}
+
+void ProgressivePhotonMapping::generateVisiblePoints(RenderContext* pRenderContext, const RenderData& renderData)
+{
+    PROFILE("Generate Visible Points");
+}
+
+void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, const RenderData& renderData)
+{
+    PROFILE("Generate Photons");
 }
 
 void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const RenderData& renderData)

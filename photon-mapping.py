@@ -35,8 +35,14 @@ def render_graph_PhotonMapping():
     g.addPass(ProgressivePhotonMapping, 'ProgressivePhotonMapping')
     VBufferRT = createPass('VBufferRT', {'outputSize': IOSize.Default, 'samplePattern': SamplePattern.Center, 'sampleCount': 16, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': CullMode.CullBack, 'useTraceRayInline': False, 'useDOF': True})
     g.addPass(VBufferRT, 'VBufferRT')
+    ToneMapper = createPass('ToneMapper', {'outputSize': IOSize.Default, 'useSceneMetadata': True, 'exposureCompensation': 0.0, 'autoExposure': False, 'filmSpeed': 100.0, 'whiteBalance': False, 'whitePoint': 6500.0, 'operator': ToneMapOp.Aces, 'clamp': True, 'whiteMaxLuminance': 1.0, 'whiteScale': 11.199999809265137, 'fNumber': 1.0, 'shutter': 1.0, 'exposureMode': ExposureMode.AperturePriority})
+    g.addPass(ToneMapper, 'ToneMapper')
+    AccumulatePass = createPass('AccumulatePass', {'enabled': True, 'outputSize': IOSize.Default, 'autoReset': True, 'precisionMode': AccumulatePrecision.Single, 'subFrameCount': 0, 'maxAccumulatedFrames': 0})
+    g.addPass(AccumulatePass, 'AccumulatePass')
     g.addEdge('VBufferRT.vbuffer', 'ProgressivePhotonMapping.vbuffer')
-    g.markOutput('ProgressivePhotonMapping.color')
+    g.addEdge('ProgressivePhotonMapping.color', 'AccumulatePass.input')
+    g.addEdge('AccumulatePass.output', 'ToneMapper.src')
+    g.markOutput('ToneMapper.dst')
     return g
 
 PhotonMapping = render_graph_PhotonMapping()
