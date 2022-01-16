@@ -8,7 +8,7 @@ __exported import Utils.Math.BitTricks;
 __exported import Scene.HitInfo;
 #endif
 
-struct HitPoint
+struct VisiblePoint
 {
 #ifndef HOST_CODE
     __init()
@@ -35,7 +35,7 @@ struct PhotonMappingParams
     uint seed = 0;
 };
 
-uint hitPointPixelPositionToPointer(uint2 pixel, PhotonMappingParams params)
+uint visiblePointPositionToPointer(uint2 pixel, PhotonMappingParams params)
 {
     return pixel.x + pixel.y * params.frameDim.x;
 }

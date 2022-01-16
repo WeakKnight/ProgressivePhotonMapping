@@ -39,7 +39,7 @@
   </ItemGroup>
   <ItemGroup>
     <ShaderSource Include="GeneratePhotons.cs.slang" />
-    <ShaderSource Include="GenerateHitPoints.cs.slang" />
+    <ShaderSource Include="GenerateVisiblePoints.cs.slang" />
     <ShaderSource Include="Params.slang" />
     <ShaderSource Include="ResolvePass.cs.slang" />
     <ShaderSource Include="ShadingDataLoader.slang" />

@@ -30,7 +30,7 @@
 
 const RenderPass::Info ProgressivePhotonMapping::kInfo { "ProgressivePhotonMapping", "Insert pass description here." };
 
-const std::string kGenerateHitPointsFile = "RenderPasses/ProgressivePhotonMapping/GenerateHitPoints.cs.slang";
+const std::string kGenerateVisiblePointsFile = "RenderPasses/ProgressivePhotonMapping/GenerateVisiblePoints.cs.slang";
 const std::string kGeneratePhotonsFile = "RenderPasses/ProgressivePhotonMapping/GeneratePhotons.cs.slang";
 const std::string kResolvePassFile = "RenderPasses/ProgressivePhotonMapping/ResolvePass.cs.slang";
 const std::string kShaderModel = "6_5";
@@ -65,7 +65,7 @@ ProgressivePhotonMapping::ProgressivePhotonMapping() : RenderPass(kInfo)
     defines.add("_MS_DISABLE_ALPHA_TEST");
     defines.add("_DEFAULT_ALPHA_TEST");
 
-    mpGenerateHitPointsPass = ComputePass::create(Program::Desc(kGenerateHitPointsFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
+    mpGenerateVisiblePointsPass = ComputePass::create(Program::Desc(kGenerateVisiblePointsFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
     mpGeneratePhotonsPass = ComputePass::create(Program::Desc(kGeneratePhotonsFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
     mpResolvePass = ComputePass::create(Program::Desc(kResolvePassFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
 }
@@ -141,9 +141,9 @@ void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const R
     mParams.frameDim = uint2(pOutputColor->getWidth(), pOutputColor->getHeight());
     mParams.seed = mParams.frameCount;
 
-    if (!mpHitPoints)
+    if (!mpVisiblePoints)
     {
-        mpHitPoints = Buffer::createStructured(sizeof(HitPoint), mParams.frameDim.x * mParams.frameDim.y);
+        mpVisiblePoints = Buffer::createStructured(sizeof(VisiblePoint), mParams.frameDim.x * mParams.frameDim.y);
     }
 }
 
@@ -162,8 +162,8 @@ void ProgressivePhotonMapping::recompile()
         program->setTypeConformances(typeConformances);
     };
 
-    prepareProgram(mpGenerateHitPointsPass->getProgram());
-    mpGenerateHitPointsPass->setVars(nullptr);
+    prepareProgram(mpGenerateVisiblePointsPass->getProgram());
+    mpGenerateVisiblePointsPass->setVars(nullptr);
 
     prepareProgram(mpGeneratePhotonsPass->getProgram());
     mpGeneratePhotonsPass->setVars(nullptr);
@@ -250,15 +250,15 @@ void ProgressivePhotonMapping::generateHitPoints(RenderContext* pRenderContext, 
 {
     PROFILE("Generate Hit Points");
 
-    auto cb = mpGenerateHitPointsPass["CB"];
-    setParamShaderData(cb["gGenerateHitPointsPass"]["params"]);
-    ShadingDataLoader::setShaderData(renderData, cb["gGenerateHitPointsPass"]["shadingDataLoader"]);
-    cb["gGenerateHitPointsPass"]["hitPoints"] = mpHitPoints;
+    auto cb = mpGenerateVisiblePointsPass["CB"];
+    setParamShaderData(cb["gGenerateVisiblePointsPass"]["params"]);
+    ShadingDataLoader::setShaderData(renderData, cb["gGenerateVisiblePointsPass"]["shadingDataLoader"]);
+    cb["gGenerateVisiblePointsPass"]["visiblePoints"] = mpVisiblePoints;
 
-    mpSampleGenerator->setShaderData(mpGenerateHitPointsPass->getRootVar());
-    mpScene->setRaytracingShaderData(pRenderContext, mpGenerateHitPointsPass->getRootVar());
+    mpSampleGenerator->setShaderData(mpGenerateVisiblePointsPass->getRootVar());
+    mpScene->setRaytracingShaderData(pRenderContext, mpGenerateVisiblePointsPass->getRootVar());
 
-    mpGenerateHitPointsPass->execute(pRenderContext, mParams.frameDim.x, mParams.frameDim.y);
+    mpGenerateVisiblePointsPass->execute(pRenderContext, mParams.frameDim.x, mParams.frameDim.y);
 }
 
 void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, const RenderData& renderData)
@@ -282,7 +282,7 @@ void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const Rend
         mpEmissiveSampler->setShaderData(cb["gResolvePass"]["emissiveSampler"]);
     }
     ShadingDataLoader::setShaderData(renderData, cb["gResolvePass"]["shadingDataLoader"]);
-    cb["gResolvePass"]["hitPoints"] = mpHitPoints;
+    cb["gResolvePass"]["visiblePoints"] = mpVisiblePoints;
 
     mpSampleGenerator->setShaderData(mpResolvePass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpResolvePass->getRootVar());

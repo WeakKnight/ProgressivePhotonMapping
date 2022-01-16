@@ -71,9 +71,9 @@ private:
     EmissivePowerSampler::SharedPtr mpEmissiveSampler;
     EnvMapSampler::SharedPtr mpEnvMapSampler;
 
-    Buffer::SharedPtr mpHitPoints; /// Screen Size
+    Buffer::SharedPtr mpVisiblePoints; /// Screen Size
 
-    ComputePass::SharedPtr mpGenerateHitPointsPass;
+    ComputePass::SharedPtr mpGenerateVisiblePointsPass;
     ComputePass::SharedPtr mpGeneratePhotonsPass;
     ComputePass::SharedPtr mpResolvePass;
 
