@@ -9,11 +9,12 @@ import Rendering.Lights.EnvMapSampler;
 import Rendering.Lights.EmissiveLightSampler;
 import Rendering.Lights.EmissiveLightSamplerHelpers;
 
-struct GenerateVisiblePointsPass
+struct GenerateHitPointsPass
 {
     PhotonMappingParams params;
     ShadingDataLoader shadingDataLoader;
-    
+    RWStructuredBuffer<HitPoint> hitPoints;
+
     void execute(const uint2 pixel)
     {
         if (any(pixel >= params.frameDim))
@@ -27,17 +28,20 @@ struct GenerateVisiblePointsPass
         }
 
         ShadingData sd = shadingDataLoader.loadShadingData(pixel, params.frameDim, gScene.camera);
-        
+        HitPoint hitPoint = HitPoint();
+        hitPoint.flux = float3(pixel.x / (float)params.frameDim.x, pixel.y / (float)params.frameDim.y, 0.0f);
+        uint hitPointPointer = hitPointPixelPositionToPointer(pixel, params);
+        hitPoints[hitPointPointer] = hitPoint;
     }
 };
 
 cbuffer CB
 {
-    GenerateVisiblePointsPass gGenerateVisiblePointsPass;
+    GenerateHitPointsPass gGenerateHitPointsPass;
 }
 
 [numthreads(16, 16, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
-    gGenerateVisiblePointsPass.execute(dispatchThreadId.xy);
+    gGenerateHitPointsPass.execute(dispatchThreadId.xy);
 }

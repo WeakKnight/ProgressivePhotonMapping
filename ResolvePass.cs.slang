@@ -29,6 +29,8 @@ struct ResolvePass
     EnvMapSampler envMapSampler;
     EmissiveLightSampler emissiveSampler;
 
+    StructuredBuffer<HitPoint> hitPoints;
+
     float3 evalEmissiveLighting(ShadingData sd, inout SampleGenerator sg)
     {
         TriangleLightSample tls;
@@ -88,7 +90,10 @@ struct ResolvePass
             color = evalEmissiveLighting(sd, sg);
             color += bsdf.getProperties(sd).emissive;
         }
-        
+
+        uint hitPointPointer = hitPointPixelPositionToPointer(pixel, params);
+        HitPoint hitPoint = hitPoints[hitPointPointer];
+        color = hitPoint.flux;
         outputColor[pixel] = float4(color, 1.0f);
     }
 };

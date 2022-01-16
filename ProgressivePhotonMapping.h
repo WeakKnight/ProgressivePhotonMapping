@@ -56,7 +56,7 @@ public:
     void beginFrame(RenderContext* pRenderContext, const RenderData& renderData);
     void recompile();
     bool prepareLighting(RenderContext* pRenderContext);
-    void generateVisiblePoints(RenderContext* pRenderContext, const RenderData& renderData);
+    void generateHitPoints(RenderContext* pRenderContext, const RenderData& renderData);
     void generatePhotons(RenderContext* pRenderContext, const RenderData& renderData);
     void resolve(RenderContext* pRenderContext, const RenderData& renderData);
     void endFrame(RenderContext* pRenderContext, const RenderData& renderData);
@@ -71,9 +71,9 @@ private:
     EmissivePowerSampler::SharedPtr mpEmissiveSampler;
     EnvMapSampler::SharedPtr mpEnvMapSampler;
 
-    Buffer::SharedPtr mpVisiblePoints; /// Screen Size
+    Buffer::SharedPtr mpHitPoints; /// Screen Size
 
-    ComputePass::SharedPtr mpGenerateVisiblePointsPass;
+    ComputePass::SharedPtr mpGenerateHitPointsPass;
     ComputePass::SharedPtr mpGeneratePhotonsPass;
     ComputePass::SharedPtr mpResolvePass;
 

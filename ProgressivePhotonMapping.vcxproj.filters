@@ -12,7 +12,7 @@
     <ShaderSource Include="ShadingDataLoader.slang" />
     <ShaderSource Include="ResolvePass.cs.slang" />
     <ShaderSource Include="Params.slang" />
-    <ShaderSource Include="GenerateVisiblePoints.cs.slang" />
+    <ShaderSource Include="GenerateHitPoints.cs.slang" />
     <ShaderSource Include="GeneratePhotons.cs.slang" />
   </ItemGroup>
 </Project>

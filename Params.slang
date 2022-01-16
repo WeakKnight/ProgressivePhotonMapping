@@ -5,7 +5,28 @@ BEGIN_NAMESPACE_FALCOR
 
 #ifndef HOST_CODE
 __exported import Utils.Math.BitTricks;
+__exported import Scene.HitInfo;
 #endif
+
+struct HitPoint
+{
+#ifndef HOST_CODE
+    __init()
+    {
+        hitInfo = 0u;
+        wi = 0.0f;
+        radius = 0.0f;
+        flux = 0.0f;
+        n = 0u;
+    }
+#endif
+
+    uint4 hitInfo;
+    float3 wi;
+    float radius;
+    float3 flux;
+    uint n;
+};
 
 struct PhotonMappingParams
 {
@@ -13,5 +34,10 @@ struct PhotonMappingParams
     uint frameCount = 0;
     uint seed = 0;
 };
+
+uint hitPointPixelPositionToPointer(uint2 pixel, PhotonMappingParams params)
+{
+    return pixel.x + pixel.y * params.frameDim.x;
+}
 
 END_NAMESPACE_FALCOR
