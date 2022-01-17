@@ -4,7 +4,7 @@ __exported import Scene.HitInfo;
 import Scene.Material.ShadingUtils;
 import Rendering.Materials.TexLODHelpers;
 import Utils.Math.MathHelpers;
-import Params;
+import Types;
 
 struct ShadingDataLoader
 {
@@ -16,6 +16,12 @@ struct ShadingDataLoader
         // Note that we do not take depth-of-field into account as it would require exactly matching the
         // sample generator between the passes, which is error prone. The host side will issue a warning instead.
         return camera.computeRayPinhole(pixel, frameDim);
+    }
+
+    HitInfo loadHitInfo(uint2 pixel)
+    {
+        HitInfo hit = HitInfo(VBuffer[pixel]);
+        return hit;
     }
 
     VertexData loadVertexData(const HitInfo hit, const float3 rayOrigin, const float3 rayDir, out uint materialID, out float curveSphereRadius)
@@ -91,7 +97,7 @@ struct ShadingDataLoader
     {
         ExplicitLodTextureSampler lod = ExplicitLodTextureSampler(0.f);
         Ray ray = getPrimaryRay(pixel, frameDim, camera);
-        HitInfo hit = HitInfo(VBuffer[pixel]);
+        HitInfo hit = loadHitInfo(pixel);
         return loadShadingData(hit, ray.origin, ray.dir, true, lod);
     }
 

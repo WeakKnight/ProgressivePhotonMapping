@@ -3,16 +3,19 @@
   <ItemGroup>
     <ClCompile Include="ProgressivePhotonMapping.cpp" />
     <ClCompile Include="ShadingDataLoader.cpp" />
+    <ClCompile Include="AccelerationStructureBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ProgressivePhotonMapping.h" />
     <ClInclude Include="ShadingDataLoader.h" />
+    <ClInclude Include="AccelerationStructureBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ShaderSource Include="ShadingDataLoader.slang" />
     <ShaderSource Include="ResolvePass.cs.slang" />
-    <ShaderSource Include="Params.slang" />
     <ShaderSource Include="GenerateVisiblePoints.cs.slang" />
     <ShaderSource Include="GeneratePhotons.cs.slang" />
+    <ShaderSource Include="Helper.slang" />
+    <ShaderSource Include="Types.slang" />
   </ItemGroup>
 </Project>

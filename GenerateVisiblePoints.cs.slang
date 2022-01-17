@@ -1,20 +1,15 @@
-import Params;
-#include "Utils/Math/MathConstants.slangh"
-import Utils.Sampling.SampleGenerator;
-import Utils.Geometry.GeometryHelpers;
-import Scene.Scene;
-import Scene.RaytracingInline;
-import ShadingDataLoader;
-import Rendering.Lights.EnvMapSampler;
-import Rendering.Lights.EmissiveLightSampler;
-import Rendering.Lights.EmissiveLightSamplerHelpers;
+import Helper;
 
 struct GenerateVisiblePointsPass
 {
     PhotonMappingParams params;
     ShadingDataLoader shadingDataLoader;
+    EnvMapSampler envMapSampler;
+    EmissiveLightSampler emissiveSampler;
     RWStructuredBuffer<VisiblePoint> visiblePoints;
-
+    RWStructuredBuffer<PackedBoundingBox> visiblePointsBoundingBoxBuffer;
+    RWTexture2D<float4> outputColor;
+    
     void execute(const uint2 pixel)
     {
         if (any(pixel >= params.frameDim))
@@ -22,18 +17,59 @@ struct GenerateVisiblePointsPass
             return;
         }
 
+        SampleGenerator sg = SampleGenerator(pixel, params.seed);
+
         VisiblePoint visiblePoint = VisiblePoint();
-        visiblePoint.flux = float3(pixel.x / (float)params.frameDim.x, pixel.y / (float)params.frameDim.y, 0.0f);
+        PackedBoundingBox visiblePointBoundingBox = PackedBoundingBox();
+        float3 color = 0.0f;
 
         if (shadingDataLoader.isPixelValid(pixel, params.frameDim))
         {
-            ShadingData sd = shadingDataLoader.loadShadingData(pixel, params.frameDim, gScene.camera);
             ITextureSampler lod = ExplicitLodTextureSampler(0.f);
-            IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
+            
+            Ray ray = shadingDataLoader.getPrimaryRay(pixel, params.frameDim, gScene.camera);
+            visiblePoint.hitInfo = shadingDataLoader.loadHitInfo(pixel).getData();
+            visiblePoint.wi = -ray.dir;
+            for (uint i = 0; i < 10; i++)
+            {
+                // Update Current Shading Data And BSDF
+                ShadingData sd = shadingDataLoader.loadShadingData(HitInfo(visiblePoint.hitInfo), ray.origin, ray.dir, i == 0, lod);
+                IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
+
+                BSDFSample bsdfSample;
+                if (!bsdf.sample(sd, sg, bsdfSample))
+                {
+                    break;
+                }
+
+                if (bsdfSample.isLobe(LobeType::Diffuse))
+                {
+                    visiblePoint.valid = 1u;
+                    visiblePointBoundingBox = PackedBoundingBox(sd.posW, visiblePoint.radius);
+                    break;
+                }
+
+                color += (visiblePoint.weight * evalEmissiveLighting(sd, sg, emissiveSampler));
+
+                visiblePoint.weight *= bsdfSample.weight;
+                visiblePoint.wi = -bsdfSample.wo;
+                // Continue Tracing
+                ray.origin = sd.posW;
+                ray.dir = bsdfSample.wo;
+                HitInfo hit;
+                float hitT;
+                if (!traceSceneRay<1>(ray, hit, hitT, RAY_FLAG_NONE, 0xff))
+                {
+                    break;
+                }
+                visiblePoint.hitInfo = hit.getData();
+            }
         }
 
         uint visiblePointPointer = visiblePointPositionToPointer(pixel, params);
         visiblePoints[visiblePointPointer] = visiblePoint;
+        visiblePointsBoundingBoxBuffer[visiblePointPointer] = visiblePointBoundingBox;
+        outputColor[pixel] = float4(color, 1.0f);
     }
 };
 

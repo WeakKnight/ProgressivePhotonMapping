@@ -117,7 +117,7 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
         recompile();
     }
 
-    generateHitPoints(pRenderContext, renderData);
+    generateVisiblePoints(pRenderContext, renderData);
 
     generatePhotons(pRenderContext, renderData);
 
@@ -144,6 +144,8 @@ void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const R
     if (!mpVisiblePoints)
     {
         mpVisiblePoints = Buffer::createStructured(sizeof(VisiblePoint), mParams.frameDim.x * mParams.frameDim.y);
+        mpVisiblePointsBoundingBoxBuffer = Buffer::createStructured(sizeof(float) * 8llu, mParams.frameDim.x * mParams.frameDim.y);
+        mpVisiblePointsAS = AccelerationStructureBuilder::Create(mpVisiblePointsBoundingBoxBuffer, mParams.frameDim.x * mParams.frameDim.y);
     }
 }
 
@@ -246,24 +248,55 @@ bool ProgressivePhotonMapping::prepareLighting(RenderContext* pRenderContext)
     return lightingChanged;
 }
 
-void ProgressivePhotonMapping::generateHitPoints(RenderContext* pRenderContext, const RenderData& renderData)
+void ProgressivePhotonMapping::generateVisiblePoints(RenderContext* pRenderContext, const RenderData& renderData)
 {
     PROFILE("Generate Hit Points");
 
     auto cb = mpGenerateVisiblePointsPass["CB"];
     setParamShaderData(cb["gGenerateVisiblePointsPass"]["params"]);
+    cb["gGenerateVisiblePointsPass"]["outputColor"] = renderData[kOutputChannels[0].name]->asTexture();
     ShadingDataLoader::setShaderData(renderData, cb["gGenerateVisiblePointsPass"]["shadingDataLoader"]);
     cb["gGenerateVisiblePointsPass"]["visiblePoints"] = mpVisiblePoints;
-
+    cb["gGenerateVisiblePointsPass"]["visiblePointsBoundingBoxBuffer"] = mpVisiblePointsBoundingBoxBuffer;
+    if (mpEnvMapSampler)
+    {
+        mpEnvMapSampler->setShaderData(cb["gGenerateVisiblePointsPass"]["envMapSampler"]);
+    }
+    if (mpEmissiveSampler)
+    {
+        mpEmissiveSampler->setShaderData(cb["gGenerateVisiblePointsPass"]["emissiveSampler"]);
+    }
     mpSampleGenerator->setShaderData(mpGenerateVisiblePointsPass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpGenerateVisiblePointsPass->getRootVar());
 
     mpGenerateVisiblePointsPass->execute(pRenderContext, mParams.frameDim.x, mParams.frameDim.y);
+
+    mpVisiblePointsAS->BuildAS(pRenderContext, 1u);
 }
 
 void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, const RenderData& renderData)
 {
     PROFILE("Generate Photons");
+
+    auto cb = mpGeneratePhotonsPass["CB"];
+    setParamShaderData(cb["gGeneratePhotonsPass"]["params"]);
+    if (mpEnvMapSampler)
+    {
+        mpEnvMapSampler->setShaderData(cb["gGeneratePhotonsPass"]["envMapSampler"]);
+    }
+    if (mpEmissiveSampler)
+    {
+        mpEmissiveSampler->setShaderData(cb["gGeneratePhotonsPass"]["emissiveSampler"]);
+    }
+    ShadingDataLoader::setShaderData(renderData, cb["gGeneratePhotonsPass"]["shadingDataLoader"]);
+    cb["gGeneratePhotonsPass"]["visiblePoints"] = mpVisiblePoints;
+    cb["gGeneratePhotonsPass"]["visiblePointsBoundingBoxBuffer"] = mpVisiblePointsBoundingBoxBuffer;
+    mpVisiblePointsAS->SetRaytracingShaderData(cb["gGeneratePhotonsPass"], "visiblePointsAS", 1u);
+
+    mpSampleGenerator->setShaderData(mpGeneratePhotonsPass->getRootVar());
+    mpScene->setRaytracingShaderData(pRenderContext, mpGeneratePhotonsPass->getRootVar());
+
+    mpGeneratePhotonsPass->execute(pRenderContext, mParams.photonCount, 1u, 1u);
 }
 
 void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const RenderData& renderData)
@@ -283,6 +316,7 @@ void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const Rend
     }
     ShadingDataLoader::setShaderData(renderData, cb["gResolvePass"]["shadingDataLoader"]);
     cb["gResolvePass"]["visiblePoints"] = mpVisiblePoints;
+    mpVisiblePointsAS->SetRaytracingShaderData(cb["gResolvePass"], "visiblePointsAS", 1u);
 
     mpSampleGenerator->setShaderData(mpResolvePass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpResolvePass->getRootVar());

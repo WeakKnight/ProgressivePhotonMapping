@@ -30,7 +30,8 @@
 #include "Utils/Sampling/SampleGenerator.h"
 #include "Rendering/Lights/EmissivePowerSampler.h"
 #include "Rendering/Lights/EnvMapSampler.h"
-#include "Params.slang"
+#include "Types.slang"
+#include "AccelerationStructureBuilder.h"
 
 using namespace Falcor;
 
@@ -56,7 +57,7 @@ public:
     void beginFrame(RenderContext* pRenderContext, const RenderData& renderData);
     void recompile();
     bool prepareLighting(RenderContext* pRenderContext);
-    void generateHitPoints(RenderContext* pRenderContext, const RenderData& renderData);
+    void generateVisiblePoints(RenderContext* pRenderContext, const RenderData& renderData);
     void generatePhotons(RenderContext* pRenderContext, const RenderData& renderData);
     void resolve(RenderContext* pRenderContext, const RenderData& renderData);
     void endFrame(RenderContext* pRenderContext, const RenderData& renderData);
@@ -71,7 +72,9 @@ private:
     EmissivePowerSampler::SharedPtr mpEmissiveSampler;
     EnvMapSampler::SharedPtr mpEnvMapSampler;
 
-    Buffer::SharedPtr mpVisiblePoints; /// Screen Size
+    Buffer::SharedPtr mpVisiblePoints;
+    Buffer::SharedPtr mpVisiblePointsBoundingBoxBuffer;
+    AccelerationStructureBuilder::SharedPtr mpVisiblePointsAS;
 
     ComputePass::SharedPtr mpGenerateVisiblePointsPass;
     ComputePass::SharedPtr mpGeneratePhotonsPass;

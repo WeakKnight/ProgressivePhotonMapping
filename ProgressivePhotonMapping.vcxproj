@@ -25,10 +25,12 @@
     <Import Project="..\..\Falcor\Falcor.props" />
   </ImportGroup>
   <ItemGroup>
+    <ClCompile Include="AccelerationStructureBuilder.cpp" />
     <ClCompile Include="ProgressivePhotonMapping.cpp" />
     <ClCompile Include="ShadingDataLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AccelerationStructureBuilder.h" />
     <ClInclude Include="ProgressivePhotonMapping.h" />
     <ClInclude Include="ShadingDataLoader.h" />
   </ItemGroup>
@@ -40,9 +42,10 @@
   <ItemGroup>
     <ShaderSource Include="GeneratePhotons.cs.slang" />
     <ShaderSource Include="GenerateVisiblePoints.cs.slang" />
-    <ShaderSource Include="Params.slang" />
+    <ShaderSource Include="Helper.slang" />
     <ShaderSource Include="ResolvePass.cs.slang" />
     <ShaderSource Include="ShadingDataLoader.slang" />
+    <ShaderSource Include="Types.slang" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>

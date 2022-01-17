@@ -1,21 +1,25 @@
-import Params;
-#include "Utils/Math/MathConstants.slangh"
-import Utils.Sampling.SampleGenerator;
-import Utils.Geometry.GeometryHelpers;
-import Scene.Scene;
-import Scene.RaytracingInline;
-import ShadingDataLoader;
-import Rendering.Lights.EnvMapSampler;
-import Rendering.Lights.EmissiveLightSampler;
-import Rendering.Lights.EmissiveLightSamplerHelpers;
+import Helper;
 
 struct GeneratePhotonsPass
 {
     PhotonMappingParams params;
     ShadingDataLoader shadingDataLoader;
     
+    EnvMapSampler envMapSampler;
+    EmissiveLightSampler emissiveSampler;
+
+    RWStructuredBuffer<VisiblePoint> visiblePoints;
+    RWStructuredBuffer<PackedBoundingBox> visiblePointsBoundingBoxBuffer;
+    RaytracingAccelerationStructure visiblePointsAS;
+
     void execute(const uint photonIndex)
     {
+        if (any(photonIndex >= params.photonCount))
+        {
+            return;
+        }
+
+        // Light Tracing
     }
 };
 
