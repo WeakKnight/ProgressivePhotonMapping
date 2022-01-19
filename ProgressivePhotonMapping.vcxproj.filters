@@ -17,5 +17,6 @@
     <ShaderSource Include="GeneratePhotons.cs.slang" />
     <ShaderSource Include="Helper.slang" />
     <ShaderSource Include="Types.slang" />
+    <ShaderSource Include="ReduceRadius.cs.slang" />
   </ItemGroup>
 </Project>

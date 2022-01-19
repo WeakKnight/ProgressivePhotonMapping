@@ -74,7 +74,8 @@ void ProgressivePhotonMapping::setParamShaderData(const ShaderVar& var)
 {
     var["frameDim"] = mParams.frameDim;
     var["frameCount"] = mParams.frameCount;
-    var["seed"] = mParams.frameCount;
+    var["seed"] = mParams.seed;
+    var["photonCount"] = mParams.photonCount;
 }
 
 ProgressivePhotonMapping::SharedPtr ProgressivePhotonMapping::create(RenderContext* pRenderContext, const Dictionary& dict)
@@ -128,6 +129,7 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
 
 void ProgressivePhotonMapping::renderUI(Gui::Widgets& widget)
 {
+    widget.text("photon count: " + std::to_string(mParams.photonCount));
 }
 
 void ProgressivePhotonMapping::setScene(RenderContext* pRenderContext, const Scene::SharedPtr& pScene)
@@ -144,8 +146,18 @@ void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const R
     if (!mpVisiblePoints)
     {
         mpVisiblePoints = Buffer::createStructured(sizeof(VisiblePoint), mParams.frameDim.x * mParams.frameDim.y);
+        mpVisiblePoints->setName("Visible Points Buffer");
+
         mpVisiblePointsBoundingBoxBuffer = Buffer::createStructured(sizeof(float) * 8llu, mParams.frameDim.x * mParams.frameDim.y);
+        mpVisiblePointsBoundingBoxBuffer->setName("Visible Points Bounding Box Buffer");
+
         mpVisiblePointsAS = AccelerationStructureBuilder::Create(mpVisiblePointsBoundingBoxBuffer, mParams.frameDim.x * mParams.frameDim.y);
+    }
+
+    if (!mpPhotonBuffer)
+    {
+        mpPhotonBuffer = Buffer::createStructured(sizeof(float4), mParams.photonCount * 4u);
+        mpPhotonBuffer->setName("Photon Buffer");
     }
 }
 
@@ -224,10 +236,25 @@ bool ProgressivePhotonMapping::prepareLighting(RenderContext* pRenderContext)
             assert(pLights && pLights->getActiveLightCount() > 0);
             assert(!mpEmissiveSampler);
 
-            mpEmissiveSampler = EmissivePowerSampler::create(pRenderContext, mpScene);
+            mpEmissiveSampler = LightBVHSampler::create(pRenderContext, mpScene);
             
             lightingChanged = true;
             mRecompile = true;
+        }
+
+        if (!mpEmissiveTable || is_set(mpScene->getUpdates(), Scene::UpdateFlags::LightCollectionChanged))
+        {
+            auto lightCollection = mpScene->getLightCollection(pRenderContext);
+            lightCollection->prepareSyncCPUData(pRenderContext);
+            auto lightData = lightCollection->getMeshLightTriangles();
+            std::vector<float> fluxList;
+            fluxList.resize(lightData.size(), 0.0f);
+            for (int i = 0; i < lightData.size(); i++)
+            {
+                fluxList[i] = lightData[i].flux;
+            }
+            std::mt19937 rng;
+            mpEmissiveTable = AliasTable::create(fluxList, rng);
         }
     }
     else
@@ -235,6 +262,13 @@ bool ProgressivePhotonMapping::prepareLighting(RenderContext* pRenderContext)
         if (mpEmissiveSampler)
         {
             mpEmissiveSampler = nullptr;
+            lightingChanged = true;
+            mRecompile = true;
+        }
+
+        if (mpEmissiveTable)
+        {
+            mpEmissiveTable = nullptr;
             lightingChanged = true;
             mRecompile = true;
         }
@@ -280,21 +314,20 @@ void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, co
 
     auto cb = mpGeneratePhotonsPass["CB"];
     setParamShaderData(cb["gGeneratePhotonsPass"]["params"]);
-    if (mpEnvMapSampler)
+    if (mpEmissiveTable)
     {
-        mpEnvMapSampler->setShaderData(cb["gGeneratePhotonsPass"]["envMapSampler"]);
-    }
-    if (mpEmissiveSampler)
-    {
-        mpEmissiveSampler->setShaderData(cb["gGeneratePhotonsPass"]["emissiveSampler"]);
+        mpEmissiveTable->setShaderData(cb["gGeneratePhotonsPass"]["emissiveTable"]);
     }
     ShadingDataLoader::setShaderData(renderData, cb["gGeneratePhotonsPass"]["shadingDataLoader"]);
     cb["gGeneratePhotonsPass"]["visiblePoints"] = mpVisiblePoints;
     cb["gGeneratePhotonsPass"]["visiblePointsBoundingBoxBuffer"] = mpVisiblePointsBoundingBoxBuffer;
+
     mpVisiblePointsAS->SetRaytracingShaderData(cb["gGeneratePhotonsPass"], "visiblePointsAS", 1u);
 
     mpSampleGenerator->setShaderData(mpGeneratePhotonsPass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpGeneratePhotonsPass->getRootVar());
+
+    pRenderContext->clearUAVCounter(mpPhotonBuffer, 0u);
 
     mpGeneratePhotonsPass->execute(pRenderContext, mParams.photonCount, 1u, 1u);
 }

@@ -27,13 +27,15 @@ struct GenerateVisiblePointsPass
         {
             ITextureSampler lod = ExplicitLodTextureSampler(0.f);
             
-            Ray ray = shadingDataLoader.getPrimaryRay(pixel, params.frameDim, gScene.camera);
             visiblePoint.hitInfo = shadingDataLoader.loadHitInfo(pixel).getData();
-            visiblePoint.wi = -ray.dir;
-            for (uint i = 0; i < 10; i++)
+            Ray cameraRay = shadingDataLoader.getPrimaryRay(pixel, params.frameDim, gScene.camera);
+            visiblePoint.rayOrigin = cameraRay.origin;
+            visiblePoint.rayDir = cameraRay.dir;
+
+            for (uint i = 0; i < 5; i++)
             {
                 // Update Current Shading Data And BSDF
-                ShadingData sd = shadingDataLoader.loadShadingData(HitInfo(visiblePoint.hitInfo), ray.origin, ray.dir, i == 0, lod);
+                ShadingData sd = visiblePoint.constructShadingData(shadingDataLoader, i == 0);
                 IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
 
                 BSDFSample bsdfSample;
@@ -52,13 +54,13 @@ struct GenerateVisiblePointsPass
                 color += (visiblePoint.weight * evalEmissiveLighting(sd, sg, emissiveSampler));
 
                 visiblePoint.weight *= bsdfSample.weight;
-                visiblePoint.wi = -bsdfSample.wo;
+                visiblePoint.rayOrigin = sd.computeNewRayOrigin(!bsdfSample.isLobe(LobeType::Transmission));
+                visiblePoint.rayDir = bsdfSample.wo;
+
                 // Continue Tracing
-                ray.origin = sd.posW;
-                ray.dir = bsdfSample.wo;
                 HitInfo hit;
                 float hitT;
-                if (!traceSceneRay<1>(ray, hit, hitT, RAY_FLAG_NONE, 0xff))
+                if (!traceScatterRay(visiblePoint.rayOrigin, visiblePoint.rayDir, hit, hitT))
                 {
                     break;
                 }

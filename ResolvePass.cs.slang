@@ -1,3 +1,4 @@
+#include "Utils/Math/MathConstants.slangh"
 import Helper;
 
 struct ResolvePass
@@ -9,7 +10,7 @@ struct ResolvePass
     EnvMapSampler envMapSampler;
     EmissiveLightSampler emissiveSampler;
 
-    StructuredBuffer<VisiblePoint> visiblePoints;
+    RWStructuredBuffer<VisiblePoint> visiblePoints;
     RaytracingAccelerationStructure visiblePointsAS;
 
     void execute(const uint2 pixel)
@@ -19,6 +20,7 @@ struct ResolvePass
             return;
         }
 
+        ITextureSampler lod = ExplicitLodTextureSampler(0.f);
         float3 color = outputColor[pixel].xyz;
 
         SampleGenerator sg = SampleGenerator(pixel, params.seed);
@@ -26,13 +28,19 @@ struct ResolvePass
         if (shadingDataLoader.isPixelValid(pixel, params.frameDim))
         {
             ShadingData sd = shadingDataLoader.loadShadingData(pixel, params.frameDim, gScene.camera);
-            ITextureSampler lod = ExplicitLodTextureSampler(0.f);
             IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
             color += bsdf.getProperties(sd).emissive;
         }
 
         uint visiblePointPointer = visiblePointPositionToPointer(pixel, params);
         VisiblePoint visiblePoint = visiblePoints[visiblePointPointer];
+
+        if (visiblePoint.isValid())
+        {
+            ShadingData sdVisiblePoint = visiblePoint.constructShadingData(shadingDataLoader);
+            IBSDF bsdfVisiblePoint = gScene.materials.getBSDF(sdVisiblePoint, lod);
+            color += visiblePoint.weight * visiblePoint.flux / params.photonCount / (M_PI * visiblePoint.radius * visiblePoint.radius);
+        }
 
         outputColor[pixel] = float4(color, 1.0f);
     }

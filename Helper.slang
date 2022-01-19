@@ -2,7 +2,9 @@
 __exported import Types;
 #include "Utils/Math/MathConstants.slangh"
 __exported import Utils.Sampling.SampleGenerator;
+__exported import Utils.Sampling.AliasTable;
 __exported import Utils.Geometry.GeometryHelpers;
+__exported import Utils.Math.MathHelpers;
 __exported import Scene.Scene;
 __exported import Scene.RaytracingInline;
 __exported import ShadingDataLoader;
@@ -24,6 +26,17 @@ bool traceShadowRay(float3 origin, float3 dir, float distance)
     ray.tMax = distance;
 
     return traceSceneVisibilityRay<1>(ray, RAY_FLAG_NONE, 0xff);
+}
+
+bool traceScatterRay(float3 origin, float3 dir, out HitInfo hit, out float hitT)
+{
+    Ray ray;
+    ray.origin = origin;
+    ray.dir = dir;
+    ray.tMin = 0.0f;
+    ray.tMax = 1.0e38f;
+
+    return traceSceneRay<1>(ray, hit, hitT, RAY_FLAG_NONE, 0xff);
 }
 
 float3 evalEmissiveLighting(ShadingData sd, inout SampleGenerator sg, EmissiveLightSampler emissiveSampler)
@@ -88,18 +101,40 @@ bool traceVisibilityRayCustomAS(float3 origin, float3 dir, RaytracingAcceleratio
     return false;
 }
 
-#define ATOMIC_ADD_FLOAT(Value, Increment) \
-{ \
-	uint NewValue = asuint(Increment); \
-	uint CompareValue = 0; \
-	uint OldValue; \
-	[allow_uav_condition] \
-	while (true) \
-	{ \
-		InterlockedCompareExchange(Value, CompareValue, NewValue, OldValue); \
-		if (OldValue == CompareValue) \
-			break; \
-		CompareValue = OldValue; \
-		NewValue = asuint(Increment + asfloat(OldValue)); \
-	} \
+float3 cosineWeightedSampling(float2 XY, float3 N, out float pdf)
+{
+    float3 w = N;
+    float3 u = 0.0;
+    if (abs(w.x) > 0.1)
+    {
+        u = normalize(cross(float3(0.0, 1.0, 0.0), w));
+    }
+    else
+    {
+        u = normalize(cross(float3(1.0, 0.0, 0.0), w));
+    }
+    float3 v = cross(w, u);
+    float r1 = 2.0 * M_PI * XY.x;
+    float r2 = XY.y;
+    float r2s = sqrt(r2);
+    float3 dir = normalize((u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1.0 - r2)));
+
+    pdf = dot(N, dir) / M_PI;
+
+    return dir;
+}
+
+float3 cosineWeightedSampling(float2 XY, float3 N)
+{
+    float pdf;
+    return cosineWeightedSampling(XY, N, pdf);
+}
+
+extension VisiblePoint
+{
+    ShadingData constructShadingData(ShadingDataLoader shadingDataLoader, bool isPrimary = false)
+    {
+        ITextureSampler lod = ExplicitLodTextureSampler(0.f);
+        return shadingDataLoader.loadShadingData(HitInfo(hitInfo), rayOrigin, rayDir, isPrimary, lod);
+    } 
 }

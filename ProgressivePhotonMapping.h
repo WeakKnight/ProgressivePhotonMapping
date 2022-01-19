@@ -28,7 +28,8 @@
 #pragma once
 #include "Falcor.h"
 #include "Utils/Sampling/SampleGenerator.h"
-#include "Rendering/Lights/EmissivePowerSampler.h"
+#include "Utils/Sampling/AliasTable.h"
+#include "Rendering/Lights/LightBVHSampler.h"
 #include "Rendering/Lights/EnvMapSampler.h"
 #include "Types.slang"
 #include "AccelerationStructureBuilder.h"
@@ -69,8 +70,9 @@ private:
     Scene::SharedPtr mpScene;
     SampleGenerator::SharedPtr mpSampleGenerator;
 
-    EmissivePowerSampler::SharedPtr mpEmissiveSampler;
+    LightBVHSampler::SharedPtr mpEmissiveSampler;
     EnvMapSampler::SharedPtr mpEnvMapSampler;
+    AliasTable::SharedPtr mpEmissiveTable;
 
     Buffer::SharedPtr mpVisiblePoints;
     Buffer::SharedPtr mpVisiblePointsBoundingBoxBuffer;
@@ -84,4 +86,7 @@ private:
 
     PhotonMappingParams mParams;
     bool mRecompile = true;
+
+    Buffer::SharedPtr mpPhotonBuffer;
+    bool mPhotonDebug = true;
 };

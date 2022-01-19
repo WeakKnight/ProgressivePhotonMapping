@@ -43,6 +43,7 @@
     <ShaderSource Include="GeneratePhotons.cs.slang" />
     <ShaderSource Include="GenerateVisiblePoints.cs.slang" />
     <ShaderSource Include="Helper.slang" />
+    <ShaderSource Include="ReduceRadius.cs.slang" />
     <ShaderSource Include="ResolvePass.cs.slang" />
     <ShaderSource Include="ShadingDataLoader.slang" />
     <ShaderSource Include="Types.slang" />
