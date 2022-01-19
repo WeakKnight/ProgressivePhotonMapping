@@ -1,5 +1,4 @@
 #include "Utils/Math/MathConstants.slangh"
-// #include "Utils/NVAPI.slangh" // We need this for 64-bit atomics.
 import Helper;
 
 #define ATOMIC_ADD_FLOAT(Buffer, Address, Increment) \
@@ -23,25 +22,20 @@ struct GeneratePhotonsPass
     PhotonMappingParams params;
     ShadingDataLoader shadingDataLoader;
     
-    RWByteAddressBuffer visiblePoints;
-    StructuredBuffer<PackedBoundingBox> visiblePointsBoundingBoxBuffer;
+    StructuredBuffer<VisiblePoint> visiblePoints;
+    RWByteAddressBuffer visiblePointDensityContexts;
     RaytracingAccelerationStructure visiblePointsAS;
     AliasTable emissiveTable;
 
     void atomicAddFlux(uint pointer, float3 flux)
     {
-        const uint typeSize = 5 * 16;
+        const uint typeSize = 2 * 16;
         const uint base = typeSize * pointer;
 
-        ATOMIC_ADD_FLOAT(visiblePoints, base + 32, flux.r);
-        ATOMIC_ADD_FLOAT(visiblePoints, base + 36, flux.g);
-        ATOMIC_ADD_FLOAT(visiblePoints, base + 40, flux.b);
-
-        // NvInterlockedAddFp32(visiblePoints, base + 32, flux.r);
-        // NvInterlockedAddFp32(visiblePoints, base + 36, flux.g);
-        // NvInterlockedAddFp32(visiblePoints, base + 40, flux.b);
-
-        visiblePoints.InterlockedAdd(base + 44, 1);
+        ATOMIC_ADD_FLOAT(visiblePointDensityContexts, base + 0, flux.r);
+        ATOMIC_ADD_FLOAT(visiblePointDensityContexts, base + 4, flux.g);
+        ATOMIC_ADD_FLOAT(visiblePointDensityContexts, base + 8, flux.b);
+        visiblePointDensityContexts.InterlockedAdd(base + 16, 1);
     }
 
     void execute(const uint photonIndex)
@@ -52,9 +46,8 @@ struct GeneratePhotonsPass
         }
 
         ITextureSampler lod = ExplicitLodTextureSampler(0.f);
-
-        // Light Tracing
         SampleGenerator sg = SampleGenerator(uint2(photonIndex, 1), params.seed);
+
         uint triIndex = emissiveTable.sample(sampleNext2D(sg));
         float triPdf = emissiveTable.getWeight(triIndex) / emissiveTable.weightSum;
 
@@ -80,13 +73,38 @@ struct GeneratePhotonsPass
             ShadingData sd = shadingDataLoader.loadShadingData(hit, ray.origin, ray.dir, false, lod);
             IBSDF bsdf = gScene.materials.getBSDF(sd, lod);
 
+            RayDesc searchRay;
+            searchRay.Origin = sd.posW;
+            searchRay.Direction = float3(0.0f, 1.0f, 0.0f);
+            searchRay.TMin = 0.0f;
+            searchRay.TMax = 0.0f;
+            RayQuery<RAY_FLAG_NONE> rayQuery;
+            rayQuery.TraceRayInline(visiblePointsAS, RAY_FLAG_NONE, 0xff, searchRay);
+            while(rayQuery.Proceed())
+            {
+                if(rayQuery.CandidateType() == CANDIDATE_PROCEDURAL_PRIMITIVE)
+                {
+                    uint pointer = rayQuery.CandidatePrimitiveIndex();
+                    VisiblePoint visiblePoint = visiblePoints[pointer];
+                    VisiblePointDensityContext visiblePointDensityContext = VisiblePointDensityContext(visiblePointDensityContexts, pointer);
+                    ShadingData sdVisiblePoint = visiblePoint.constructShadingData(shadingDataLoader);
+                    float3 visiblePointToPhoton = sd.posW - sdVisiblePoint.posW;
+                    if (dot(visiblePointToPhoton, visiblePointToPhoton) < (visiblePointDensityContext.radius * visiblePointDensityContext.radius))
+                    {
+                        IBSDF bsdfVisiblePoint = gScene.materials.getBSDF(sdVisiblePoint, lod);
+                        // Consider Refraction Lobe
+                        float geomTerm = (visiblePoint.lobe & uint(LobeType::Transmission) != 0)? dot(sdVisiblePoint.N, -ray.dir): dot(-sdVisiblePoint.N, -ray.dir);
+                        // float3 diffuse = (visiblePoint.lobe & uint(LobeType::Transmission) != 0)? bsdfVisiblePoint.getProperties(sdVisiblePoint).diffuseReflectionAlbedo: bsdfVisiblePoint.getProperties(sdVisiblePoint).diffuseTransmissionAlbedo;
+                        atomicAddFlux(pointer, flux * saturate(geomTerm));
+                    }
+                }
+            }
+
             BSDFSample bsdfSample;
             if (!bsdf.sample(sd, sg, bsdfSample))
             {
                 break;
             }
-
-//             flux = flux * bsdfSample.weight;
 
             float3 newFlux = flux * bsdfSample.weight;
             float continuationProb = sqrt(saturate(max(newFlux.x, max(newFlux.y, newFlux.z)) / max(flux.x, max(flux.y, flux.z))));
@@ -102,33 +120,7 @@ struct GeneratePhotonsPass
             {
                 flux = newFlux;
             }
-
-            // Process Photon Here
-            RayDesc searchRay;
-            searchRay.Origin = sd.posW;
-            searchRay.Direction = float3(0.0f, 1.0f, 0.0f);
-            searchRay.TMin = 0.0f;
-            searchRay.TMax = 0.0f;
-            RayQuery<RAY_FLAG_NONE> rayQuery;
-            rayQuery.TraceRayInline(visiblePointsAS, RAY_FLAG_NONE, 0xff, searchRay);
-            while(rayQuery.Proceed())
-            {
-                if(rayQuery.CandidateType() == CANDIDATE_PROCEDURAL_PRIMITIVE)
-                {
-                    uint pointer = rayQuery.CandidatePrimitiveIndex();
-                    VisiblePoint visiblePoint = VisiblePoint(visiblePoints, pointer);
-                    ShadingData sdVisiblePoint = visiblePoint.constructShadingData(shadingDataLoader);
-                    float3 visiblePointToPhoton = sd.posW - sdVisiblePoint.posW;
-                    
-                    // // Inside Radius
-                    if (dot(visiblePointToPhoton, visiblePointToPhoton) < (visiblePoint.radius * visiblePoint.radius))
-                    {
-                        atomicAddFlux(pointer, flux);
-                    }
-                }
-            }
             
-            // Update Ray
             ray.origin = sd.computeNewRayOrigin(!bsdfSample.isLobe(LobeType::Transmission));
             ray.dir = bsdfSample.wo;   
         }

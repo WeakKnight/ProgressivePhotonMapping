@@ -148,16 +148,13 @@ void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const R
         mpVisiblePoints = Buffer::createStructured(sizeof(VisiblePoint), mParams.frameDim.x * mParams.frameDim.y);
         mpVisiblePoints->setName("Visible Points Buffer");
 
+        mpVisiblePointDensityContexts = Buffer::createStructured(sizeof(VisiblePointDensityContext), mParams.frameDim.x * mParams.frameDim.y);
+        mpVisiblePointDensityContexts->setName("Visible Point Density Context Buffer");
+
         mpVisiblePointsBoundingBoxBuffer = Buffer::createStructured(sizeof(float) * 8llu, mParams.frameDim.x * mParams.frameDim.y);
         mpVisiblePointsBoundingBoxBuffer->setName("Visible Points Bounding Box Buffer");
 
         mpVisiblePointsAS = AccelerationStructureBuilder::Create(mpVisiblePointsBoundingBoxBuffer, mParams.frameDim.x * mParams.frameDim.y);
-    }
-
-    if (!mpPhotonBuffer)
-    {
-        mpPhotonBuffer = Buffer::createStructured(sizeof(float4), mParams.photonCount * 4u);
-        mpPhotonBuffer->setName("Photon Buffer");
     }
 }
 
@@ -292,6 +289,8 @@ void ProgressivePhotonMapping::generateVisiblePoints(RenderContext* pRenderConte
     ShadingDataLoader::setShaderData(renderData, cb["gGenerateVisiblePointsPass"]["shadingDataLoader"]);
     cb["gGenerateVisiblePointsPass"]["visiblePoints"] = mpVisiblePoints;
     cb["gGenerateVisiblePointsPass"]["visiblePointsBoundingBoxBuffer"] = mpVisiblePointsBoundingBoxBuffer;
+    cb["gGenerateVisiblePointsPass"]["visiblePointDensityContexts"] = mpVisiblePointDensityContexts;
+
     if (mpEnvMapSampler)
     {
         mpEnvMapSampler->setShaderData(cb["gGenerateVisiblePointsPass"]["envMapSampler"]);
@@ -320,14 +319,12 @@ void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, co
     }
     ShadingDataLoader::setShaderData(renderData, cb["gGeneratePhotonsPass"]["shadingDataLoader"]);
     cb["gGeneratePhotonsPass"]["visiblePoints"] = mpVisiblePoints;
-    cb["gGeneratePhotonsPass"]["visiblePointsBoundingBoxBuffer"] = mpVisiblePointsBoundingBoxBuffer;
+    cb["gGeneratePhotonsPass"]["visiblePointDensityContexts"] = mpVisiblePointDensityContexts;
 
     mpVisiblePointsAS->SetRaytracingShaderData(cb["gGeneratePhotonsPass"], "visiblePointsAS", 1u);
 
     mpSampleGenerator->setShaderData(mpGeneratePhotonsPass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpGeneratePhotonsPass->getRootVar());
-
-    pRenderContext->clearUAVCounter(mpPhotonBuffer, 0u);
 
     mpGeneratePhotonsPass->execute(pRenderContext, mParams.photonCount, 1u, 1u);
 }
@@ -349,7 +346,7 @@ void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const Rend
     }
     ShadingDataLoader::setShaderData(renderData, cb["gResolvePass"]["shadingDataLoader"]);
     cb["gResolvePass"]["visiblePoints"] = mpVisiblePoints;
-    mpVisiblePointsAS->SetRaytracingShaderData(cb["gResolvePass"], "visiblePointsAS", 1u);
+    cb["gResolvePass"]["visiblePointDensityContexts"] = mpVisiblePointDensityContexts;
 
     mpSampleGenerator->setShaderData(mpResolvePass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpResolvePass->getRootVar());

@@ -11,7 +11,7 @@ struct ResolvePass
     EmissiveLightSampler emissiveSampler;
 
     RWStructuredBuffer<VisiblePoint> visiblePoints;
-    RaytracingAccelerationStructure visiblePointsAS;
+    StructuredBuffer<VisiblePointDensityContext> visiblePointDensityContexts;
 
     void execute(const uint2 pixel)
     {
@@ -34,12 +34,12 @@ struct ResolvePass
 
         uint visiblePointPointer = visiblePointPositionToPointer(pixel, params);
         VisiblePoint visiblePoint = visiblePoints[visiblePointPointer];
-
-        if (visiblePoint.isValid())
+        VisiblePointDensityContext visiblePointDensityContext = visiblePointDensityContexts[visiblePointPointer];
+        if (visiblePoint.isValid() && visiblePointDensityContext.n > 0)
         {
             ShadingData sdVisiblePoint = visiblePoint.constructShadingData(shadingDataLoader);
             IBSDF bsdfVisiblePoint = gScene.materials.getBSDF(sdVisiblePoint, lod);
-            color += visiblePoint.weight * visiblePoint.flux / params.photonCount / (M_PI * visiblePoint.radius * visiblePoint.radius);
+            color += visiblePoint.weight * visiblePointDensityContext.flux / params.photonCount / (M_PI * visiblePointDensityContext.radius * visiblePointDensityContext.radius) / visiblePointDensityContext.n;
         }
 
         outputColor[pixel] = float4(color, 1.0f);

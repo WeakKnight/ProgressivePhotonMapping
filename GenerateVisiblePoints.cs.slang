@@ -7,6 +7,7 @@ struct GenerateVisiblePointsPass
     EnvMapSampler envMapSampler;
     EmissiveLightSampler emissiveSampler;
     RWStructuredBuffer<VisiblePoint> visiblePoints;
+    RWStructuredBuffer<VisiblePointDensityContext> visiblePointDensityContexts;
     RWStructuredBuffer<PackedBoundingBox> visiblePointsBoundingBoxBuffer;
     RWTexture2D<float4> outputColor;
     
@@ -20,6 +21,8 @@ struct GenerateVisiblePointsPass
         SampleGenerator sg = SampleGenerator(pixel, params.seed);
 
         VisiblePoint visiblePoint = VisiblePoint();
+        VisiblePointDensityContext visiblePointDensityContext = VisiblePointDensityContext();
+
         PackedBoundingBox visiblePointBoundingBox = PackedBoundingBox();
         float3 color = 0.0f;
 
@@ -46,8 +49,12 @@ struct GenerateVisiblePointsPass
 
                 if (bsdfSample.isLobe(LobeType::Diffuse))
                 {
+                    // Consider Refraction Lobe
+                    float geomTerm = !bsdfSample.isLobe(LobeType::Transmission)? dot(bsdfSample.wo, sd.N): dot(bsdfSample.wo, -sd.N);
+                    visiblePoint.weight = visiblePoint.weight * bsdfSample.weight * geomTerm;
+                    visiblePoint.lobe = bsdfSample.lobe;
                     visiblePoint.valid = 1u;
-                    visiblePointBoundingBox = PackedBoundingBox(sd.posW, visiblePoint.radius);
+                    visiblePointBoundingBox = PackedBoundingBox(sd.posW, visiblePointDensityContext.radius);
                     break;
                 }
 
@@ -70,6 +77,7 @@ struct GenerateVisiblePointsPass
 
         uint visiblePointPointer = visiblePointPositionToPointer(pixel, params);
         visiblePoints[visiblePointPointer] = visiblePoint;
+        visiblePointDensityContexts[visiblePointPointer] = visiblePointDensityContext;
         visiblePointsBoundingBoxBuffer[visiblePointPointer] = visiblePointBoundingBox;
         outputColor[pixel] = float4(color, 1.0f);
     }

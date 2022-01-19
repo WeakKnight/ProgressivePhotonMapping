@@ -75,6 +75,7 @@ private:
     AliasTable::SharedPtr mpEmissiveTable;
 
     Buffer::SharedPtr mpVisiblePoints;
+    Buffer::SharedPtr mpVisiblePointDensityContexts;
     Buffer::SharedPtr mpVisiblePointsBoundingBoxBuffer;
     AccelerationStructureBuilder::SharedPtr mpVisiblePointsAS;
 
@@ -86,7 +87,4 @@ private:
 
     PhotonMappingParams mParams;
     bool mRecompile = true;
-
-    Buffer::SharedPtr mpPhotonBuffer;
-    bool mPhotonDebug = true;
 };

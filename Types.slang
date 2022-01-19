@@ -15,28 +15,11 @@ struct VisiblePoint
     __init()
     {
         hitInfo = 0u;
-        rayDir = 0.0f; // view direction
-        radius = 0.005f;
-        flux = 0.0f;
-        n = 0u;
-        weight = 1.0f;
+        rayDir = 0.0f;
         valid = 0u;
+        weight = 1.0f;
         rayOrigin = 0.0f;
-        pad0 = 0u;
-    }
-
-    __init(RWByteAddressBuffer dataBuffer, uint pointer)
-    {
-        const uint typeSize = 5 * 16;
-        const uint base = typeSize * pointer;
-        hitInfo = dataBuffer.Load4(base); // 16 * 0
-        rayDir = asfloat(dataBuffer.Load3(base + 16)); // 16 * 1
-        radius = asfloat(dataBuffer.Load(base + 28)); // 16 * 1 + 12
-        flux = asfloat(dataBuffer.Load3(base + 32)); // 16 * 2
-        n = dataBuffer.Load(base + 44); // 16 * 2 + 12
-        weight = asfloat(dataBuffer.Load3(base + 48)); // 16 * 3
-        valid = dataBuffer.Load(base + 60); // 16 * 3 + 12
-        rayOrigin = asfloat(dataBuffer.Load3(base + 64)); // 16 * 4
+        lobe = 0u;
         pad0 = 0u;
     }
 #endif
@@ -47,12 +30,13 @@ struct VisiblePoint
     }
 
     uint4 hitInfo;
+    
     float3 rayDir;
-    float radius;
-    float3 flux;
-    uint n;
-    float3 weight;
     uint valid;
+    
+    float3 weight;
+    uint lobe;
+
     float3 rayOrigin;
     uint pad0;
 };
@@ -62,9 +46,21 @@ struct VisiblePointDensityContext
 #ifndef HOST_CODE
     __init()
     {
-        radius = 0.005f;
         flux = 0.0f;
+        radius = 0.005f;
         n = 0u;
+        pad0 = 0u;
+        pad1 = 1u;
+        pad2 = 2u;
+    }
+
+    __init(RWByteAddressBuffer dataBuffer, uint pointer)
+    {
+        const uint typeSize = 2 * 16;
+        const uint base = typeSize * pointer;
+        flux = asfloat(dataBuffer.Load3(base)); // 16 * 0
+        radius = asfloat(dataBuffer.Load(base + 12u)); // 16 * 0 + 12
+        n = dataBuffer.Load(base + 16u); // 16 * 1 + 0
         pad0 = 0u;
         pad1 = 1u;
         pad2 = 2u;
