@@ -76,12 +76,14 @@ private:
     AliasTable::SharedPtr mpEmissiveTable;
 
     Buffer::SharedPtr mpVisiblePoints;
+    Buffer::SharedPtr mpVisiblePointPhotonNumbers;
     Buffer::SharedPtr mpVisiblePointDensityContexts;
     Buffer::SharedPtr mpVisiblePointsBoundingBoxBuffer;
     AccelerationStructureBuilder::SharedPtr mpVisiblePointsAS;
 
     ComputePass::SharedPtr mpGenerateVisiblePointsPass;
     ComputePass::SharedPtr mpGeneratePhotonsPass;
+    ComputePass::SharedPtr mpSyncPhotonNumberPass;
     ComputePass::SharedPtr mpReduceRadiusPass;
     ComputePass::SharedPtr mpResolvePass;
 

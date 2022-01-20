@@ -80,6 +80,7 @@ void ProgressivePhotonMapping::setParamShaderData(const ShaderVar& var)
     var["photonPerDispatch"] = mParams.photonPerDispatch;
     var["photonCount"] = mParams.photonCount;
     var["photonPassIndex"] = mParams.photonPassIndex;
+    var["alpha"] = mParams.alpha;
 }
 
 ProgressivePhotonMapping::SharedPtr ProgressivePhotonMapping::create(RenderContext* pRenderContext, const Dictionary& dict)
@@ -127,7 +128,6 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
     for (uint i = 0; i < mParams.photonPassCount; i++)
     {
         generatePhotons(pRenderContext, renderData);
-        mParams.photonPassIndex++;
         reduceRadius(pRenderContext, renderData);
     }
 
@@ -158,6 +158,9 @@ void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const R
     {
         mpVisiblePoints = Buffer::createStructured(sizeof(VisiblePoint), mParams.frameDim.x * mParams.frameDim.y);
         mpVisiblePoints->setName("Visible Points Buffer");
+
+        mpVisiblePointPhotonNumbers = Buffer::createStructured(sizeof(uint), mParams.frameDim.x * mParams.frameDim.y);
+        mpVisiblePointPhotonNumbers->setName("Visible Point Photon Number Buffer");
 
         mpVisiblePointDensityContexts = Buffer::createStructured(sizeof(VisiblePointDensityContext), mParams.frameDim.x * mParams.frameDim.y);
         mpVisiblePointDensityContexts->setName("Visible Point Density Context Buffer");
@@ -304,6 +307,7 @@ void ProgressivePhotonMapping::generateVisiblePoints(RenderContext* pRenderConte
     cb["gGenerateVisiblePointsPass"]["visiblePoints"] = mpVisiblePoints;
     cb["gGenerateVisiblePointsPass"]["visiblePointsBoundingBoxBuffer"] = mpVisiblePointsBoundingBoxBuffer;
     cb["gGenerateVisiblePointsPass"]["visiblePointDensityContexts"] = mpVisiblePointDensityContexts;
+    cb["gGenerateVisiblePointsPass"]["visiblePointPhotonNumbers"] = mpVisiblePointPhotonNumbers;
 
     if (mpEnvMapSampler)
     {
@@ -334,6 +338,7 @@ void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, co
     ShadingDataLoader::setShaderData(renderData, cb["gGeneratePhotonsPass"]["shadingDataLoader"]);
     cb["gGeneratePhotonsPass"]["visiblePoints"] = mpVisiblePoints;
     cb["gGeneratePhotonsPass"]["visiblePointDensityContexts"] = mpVisiblePointDensityContexts;
+    cb["gGeneratePhotonsPass"]["visiblePointPhotonNumbers"] = mpVisiblePointPhotonNumbers;
 
     mpVisiblePointsAS->SetRaytracingShaderData(cb["gGeneratePhotonsPass"], "visiblePointsAS", 1u);
 
@@ -343,11 +348,24 @@ void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, co
     mpGeneratePhotonsPass->execute(pRenderContext, mParams.photonPerDispatch, 1u, 1u);
 
     mParams.photonCount += mParams.photonPerDispatch;
+    mParams.photonPassIndex++;
 }
 
 void ProgressivePhotonMapping::reduceRadius(RenderContext* pRenderContext, const RenderData& renderData)
 {
+    PROFILE("Reduce Radius");
 
+    auto cb = mpReduceRadiusPass["CB"];
+    setParamShaderData(cb["gReduceRadiusPass"]["params"]);
+    ShadingDataLoader::setShaderData(renderData, cb["gReduceRadiusPass"]["shadingDataLoader"]);
+    cb["gReduceRadiusPass"]["visiblePoints"] = mpVisiblePoints;
+    cb["gReduceRadiusPass"]["visiblePointDensityContexts"] = mpVisiblePointDensityContexts;
+    cb["gReduceRadiusPass"]["visiblePointPhotonNumbers"] = mpVisiblePointPhotonNumbers;
+
+    mpSampleGenerator->setShaderData(mpReduceRadiusPass->getRootVar());
+    mpScene->setRaytracingShaderData(pRenderContext, mpReduceRadiusPass->getRootVar());
+
+    mpReduceRadiusPass->execute(pRenderContext, mParams.frameDim.x, mParams.frameDim.y);
 }
 
 void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const RenderData& renderData)

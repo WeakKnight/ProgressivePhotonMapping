@@ -8,6 +8,7 @@ struct GenerateVisiblePointsPass
     EmissiveLightSampler emissiveSampler;
     RWStructuredBuffer<VisiblePoint> visiblePoints;
     RWStructuredBuffer<VisiblePointDensityContext> visiblePointDensityContexts;
+    RWStructuredBuffer<uint> visiblePointPhotonNumbers;
     RWStructuredBuffer<PackedBoundingBox> visiblePointsBoundingBoxBuffer;
     RWTexture2D<float4> outputColor;
     
@@ -53,7 +54,7 @@ struct GenerateVisiblePointsPass
                 {
                     // Consider Refraction Lobe
                     float geomTerm = !bsdfSample.isLobe(LobeType::Transmission)? dot(bsdfSample.wo, sd.N): dot(bsdfSample.wo, -sd.N);
-                    visiblePoint.weight = visiblePoint.weight * bsdfSample.weight / geomTerm; // why multiply geom term ?? 
+                    visiblePoint.weight = visiblePoint.weight * bsdfSample.weight / geomTerm;
                     visiblePoint.lobe = bsdfSample.lobe;
                     visiblePoint.valid = 1u;
                     visiblePointBoundingBox = PackedBoundingBox(sd.posW, visiblePointDensityContext.radius);
@@ -81,6 +82,8 @@ struct GenerateVisiblePointsPass
         visiblePoints[visiblePointPointer] = visiblePoint;
         visiblePointDensityContexts[visiblePointPointer] = visiblePointDensityContext;
         visiblePointsBoundingBoxBuffer[visiblePointPointer] = visiblePointBoundingBox;
+        visiblePointPhotonNumbers[visiblePointPointer] = 0;
+
         outputColor[pixel] = float4(color, 1.0f);
     }
 };

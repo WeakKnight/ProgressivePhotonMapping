@@ -24,6 +24,7 @@ struct GeneratePhotonsPass
     
     StructuredBuffer<VisiblePoint> visiblePoints;
     RWByteAddressBuffer visiblePointDensityContexts;
+    RWByteAddressBuffer visiblePointPhotonNumbers;
     RaytracingAccelerationStructure visiblePointsAS;
     AliasTable emissiveTable;
 
@@ -35,7 +36,8 @@ struct GeneratePhotonsPass
         ATOMIC_ADD_FLOAT(visiblePointDensityContexts, base + 0, flux.r);
         ATOMIC_ADD_FLOAT(visiblePointDensityContexts, base + 4, flux.g);
         ATOMIC_ADD_FLOAT(visiblePointDensityContexts, base + 8, flux.b);
-        visiblePointDensityContexts.InterlockedAdd(base + 16, 1);
+        
+        visiblePointPhotonNumbers.InterlockedAdd(pointer * 4, 1);
     }
 
     void execute(const uint photonIndex)
