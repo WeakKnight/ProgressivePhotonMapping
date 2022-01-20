@@ -53,7 +53,7 @@ struct GenerateVisiblePointsPass
                 {
                     // Consider Refraction Lobe
                     float geomTerm = !bsdfSample.isLobe(LobeType::Transmission)? dot(bsdfSample.wo, sd.N): dot(bsdfSample.wo, -sd.N);
-                    visiblePoint.weight = visiblePoint.weight * bsdfSample.weight * geomTerm;
+                    visiblePoint.weight = visiblePoint.weight * bsdfSample.weight * geomTerm; // why multiply geom term ?? 
                     visiblePoint.lobe = bsdfSample.lobe;
                     visiblePoint.valid = 1u;
                     visiblePointBoundingBox = PackedBoundingBox(sd.posW, visiblePointDensityContext.radius);

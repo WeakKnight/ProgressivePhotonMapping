@@ -39,7 +39,7 @@ struct ResolvePass
         {
             ShadingData sdVisiblePoint = visiblePoint.constructShadingData(shadingDataLoader);
             IBSDF bsdfVisiblePoint = gScene.materials.getBSDF(sdVisiblePoint, lod);
-            color += visiblePoint.weight * visiblePointDensityContext.flux / params.photonCount / (M_PI * visiblePointDensityContext.radius * visiblePointDensityContext.radius) / visiblePointDensityContext.n;
+            color += visiblePoint.weight * visiblePointDensityContext.flux / params.photonCount / (M_PI * visiblePointDensityContext.radius * visiblePointDensityContext.radius) / visiblePointDensityContext.n; // divide n here?
         }
 
         outputColor[pixel] = float4(color, 1.0f);
