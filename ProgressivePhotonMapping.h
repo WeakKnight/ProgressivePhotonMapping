@@ -60,6 +60,7 @@ public:
     bool prepareLighting(RenderContext* pRenderContext);
     void generateVisiblePoints(RenderContext* pRenderContext, const RenderData& renderData);
     void generatePhotons(RenderContext* pRenderContext, const RenderData& renderData);
+    void reduceRadius(RenderContext* pRenderContext, const RenderData& renderData);
     void resolve(RenderContext* pRenderContext, const RenderData& renderData);
     void endFrame(RenderContext* pRenderContext, const RenderData& renderData);
 
@@ -81,6 +82,7 @@ private:
 
     ComputePass::SharedPtr mpGenerateVisiblePointsPass;
     ComputePass::SharedPtr mpGeneratePhotonsPass;
+    ComputePass::SharedPtr mpReduceRadiusPass;
     ComputePass::SharedPtr mpResolvePass;
 
     Texture::SharedPtr mpShadingOutput;

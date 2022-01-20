@@ -40,7 +40,7 @@ struct GeneratePhotonsPass
 
     void execute(const uint photonIndex)
     {
-        if (any(photonIndex >= params.photonCount))
+        if (any(photonIndex >= params.photonPerDispatch))
         {
             return;
         }

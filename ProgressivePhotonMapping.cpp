@@ -32,6 +32,7 @@ const RenderPass::Info ProgressivePhotonMapping::kInfo { "ProgressivePhotonMappi
 
 const std::string kGenerateVisiblePointsFile = "RenderPasses/ProgressivePhotonMapping/GenerateVisiblePoints.cs.slang";
 const std::string kGeneratePhotonsFile = "RenderPasses/ProgressivePhotonMapping/GeneratePhotons.cs.slang";
+const std::string kReduceRadiusFile = "RenderPasses/ProgressivePhotonMapping/ReduceRadius.cs.slang";
 const std::string kResolvePassFile = "RenderPasses/ProgressivePhotonMapping/ResolvePass.cs.slang";
 const std::string kShaderModel = "6_5";
 
@@ -67,6 +68,7 @@ ProgressivePhotonMapping::ProgressivePhotonMapping() : RenderPass(kInfo)
 
     mpGenerateVisiblePointsPass = ComputePass::create(Program::Desc(kGenerateVisiblePointsFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
     mpGeneratePhotonsPass = ComputePass::create(Program::Desc(kGeneratePhotonsFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
+    mpReduceRadiusPass = ComputePass::create(Program::Desc(kReduceRadiusFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
     mpResolvePass = ComputePass::create(Program::Desc(kResolvePassFile).setShaderModel(kShaderModel).csEntry("main"), defines, false);
 }
 
@@ -75,6 +77,7 @@ void ProgressivePhotonMapping::setParamShaderData(const ShaderVar& var)
     var["frameDim"] = mParams.frameDim;
     var["frameCount"] = mParams.frameCount;
     var["seed"] = mParams.seed;
+    var["photonPerDispatch"] = mParams.photonPerDispatch;
     var["photonCount"] = mParams.photonCount;
 }
 
@@ -120,7 +123,11 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
 
     generateVisiblePoints(pRenderContext, renderData);
 
-    generatePhotons(pRenderContext, renderData);
+    for (uint i = 0; i < 5; i++)
+    {
+        generatePhotons(pRenderContext, renderData);
+        reduceRadius(pRenderContext, renderData);
+    }
 
     resolve(pRenderContext, renderData);
 
@@ -142,6 +149,7 @@ void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const R
     const auto& pOutputColor = renderData[kOutputChannels[0].name]->asTexture();
     mParams.frameDim = uint2(pOutputColor->getWidth(), pOutputColor->getHeight());
     mParams.seed = mParams.frameCount;
+    mParams.photonCount = 0u;
 
     if (!mpVisiblePoints)
     {
@@ -178,6 +186,9 @@ void ProgressivePhotonMapping::recompile()
 
     prepareProgram(mpGeneratePhotonsPass->getProgram());
     mpGeneratePhotonsPass->setVars(nullptr);
+
+    prepareProgram(mpReduceRadiusPass->getProgram());
+    mpReduceRadiusPass->setVars(nullptr);
 
     prepareProgram(mpResolvePass->getProgram());
     mpResolvePass->setVars(nullptr);
@@ -326,7 +337,14 @@ void ProgressivePhotonMapping::generatePhotons(RenderContext* pRenderContext, co
     mpSampleGenerator->setShaderData(mpGeneratePhotonsPass->getRootVar());
     mpScene->setRaytracingShaderData(pRenderContext, mpGeneratePhotonsPass->getRootVar());
 
-    mpGeneratePhotonsPass->execute(pRenderContext, mParams.photonCount, 1u, 1u);
+    mpGeneratePhotonsPass->execute(pRenderContext, mParams.photonPerDispatch, 1u, 1u);
+
+    mParams.photonCount += mParams.photonPerDispatch;
+}
+
+void ProgressivePhotonMapping::reduceRadius(RenderContext* pRenderContext, const RenderData& renderData)
+{
+
 }
 
 void ProgressivePhotonMapping::resolve(RenderContext* pRenderContext, const RenderData& renderData)

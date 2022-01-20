@@ -69,6 +69,7 @@ struct VisiblePointDensityContext
 
     float3 flux;
     float radius;
+
     uint n;
     uint pad0;
     uint pad1;
@@ -80,7 +81,11 @@ struct PhotonMappingParams
     uint2 frameDim = { 0, 0 };
     uint frameCount = 0;
     uint seed = 0;
-    uint photonCount = 100000u;
+    
+    uint photonPerDispatch = 100000u;
+    uint photonCount = 0u;
+    uint pad0;
+    uint pad1;
 };
 
 struct PackedBoundingBox
