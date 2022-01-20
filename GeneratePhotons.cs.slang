@@ -94,7 +94,6 @@ struct GeneratePhotonsPass
                         IBSDF bsdfVisiblePoint = gScene.materials.getBSDF(sdVisiblePoint, lod);
                         // Consider Refraction Lobe
                         float geomTerm = (visiblePoint.lobe & uint(LobeType::Transmission) != 0)? dot(sdVisiblePoint.N, -ray.dir): dot(-sdVisiblePoint.N, -ray.dir);
-                        // float3 diffuse = (visiblePoint.lobe & uint(LobeType::Transmission) != 0)? bsdfVisiblePoint.getProperties(sdVisiblePoint).diffuseReflectionAlbedo: bsdfVisiblePoint.getProperties(sdVisiblePoint).diffuseTransmissionAlbedo;
                         atomicAddFlux(pointer, flux * saturate(geomTerm));
                     }
                 }
