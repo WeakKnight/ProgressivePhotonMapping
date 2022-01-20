@@ -79,6 +79,7 @@ void ProgressivePhotonMapping::setParamShaderData(const ShaderVar& var)
     var["seed"] = mParams.seed;
     var["photonPerDispatch"] = mParams.photonPerDispatch;
     var["photonCount"] = mParams.photonCount;
+    var["photonPassIndex"] = mParams.photonPassIndex;
 }
 
 ProgressivePhotonMapping::SharedPtr ProgressivePhotonMapping::create(RenderContext* pRenderContext, const Dictionary& dict)
@@ -123,9 +124,10 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
 
     generateVisiblePoints(pRenderContext, renderData);
 
-    for (uint i = 0; i < 5; i++)
+    for (uint i = 0; i < mParams.photonPassCount; i++)
     {
         generatePhotons(pRenderContext, renderData);
+        mParams.photonPassIndex++;
         reduceRadius(pRenderContext, renderData);
     }
 
@@ -136,7 +138,7 @@ void ProgressivePhotonMapping::execute(RenderContext* pRenderContext, const Rend
 
 void ProgressivePhotonMapping::renderUI(Gui::Widgets& widget)
 {
-    widget.text("photon count: " + std::to_string(mParams.photonCount));
+    widget.var("Photon Pass Count", mParams.photonPassCount, 1u, 20u);
 }
 
 void ProgressivePhotonMapping::setScene(RenderContext* pRenderContext, const Scene::SharedPtr& pScene)
@@ -150,6 +152,7 @@ void ProgressivePhotonMapping::beginFrame(RenderContext* pRenderContext, const R
     mParams.frameDim = uint2(pOutputColor->getWidth(), pOutputColor->getHeight());
     mParams.seed = mParams.frameCount;
     mParams.photonCount = 0u;
+    mParams.photonPassIndex = 0u;
 
     if (!mpVisiblePoints)
     {

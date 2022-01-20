@@ -88,5 +88,6 @@ private:
     Texture::SharedPtr mpShadingOutput;
 
     PhotonMappingParams mParams;
+    uint mPhotonPassNum = 10;
     bool mRecompile = true;
 };

@@ -46,7 +46,7 @@ struct GeneratePhotonsPass
         }
 
         ITextureSampler lod = ExplicitLodTextureSampler(0.f);
-        SampleGenerator sg = SampleGenerator(uint2(photonIndex, 1), params.seed);
+        SampleGenerator sg = SampleGenerator(uint2(photonIndex, params.photonPassIndex), params.seed);
 
         uint triIndex = emissiveTable.sample(sampleNext2D(sg));
         float triPdf = emissiveTable.getWeight(triIndex) / emissiveTable.weightSum;

@@ -84,8 +84,8 @@ struct PhotonMappingParams
     
     uint photonPerDispatch = 100000u;
     uint photonCount = 0u;
-    uint pad0;
-    uint pad1;
+    uint photonPassCount = 1u;
+    uint photonPassIndex = 0u;
 };
 
 struct PackedBoundingBox
