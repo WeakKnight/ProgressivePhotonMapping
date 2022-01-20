@@ -47,6 +47,8 @@ struct GenerateVisiblePointsPass
                     break;
                 }
 
+                color += visiblePoint.weight * bsdf.getProperties(sd).emissive;
+
                 if (bsdfSample.isLobe(LobeType::Diffuse))
                 {
                     // Consider Refraction Lobe
@@ -59,7 +61,7 @@ struct GenerateVisiblePointsPass
                 }
 
                 color += (visiblePoint.weight * evalEmissiveLighting(sd, sg, emissiveSampler));
-
+                
                 visiblePoint.weight *= bsdfSample.weight;
                 visiblePoint.rayOrigin = sd.computeNewRayOrigin(!bsdfSample.isLobe(LobeType::Transmission));
                 visiblePoint.rayDir = bsdfSample.wo;
